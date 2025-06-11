@@ -178,6 +178,7 @@ yetki verilir.
 | Route'lar         | Çoğul - **kebab-case** |
 | Tablo isimleri    | **snake_case**         |
 | Sütun isimleri    | **snake_case**         |
+| Response keyleri  | **snake_case**         |
 
 - Eklenen tüm class'lar için **AdıTürü** şeklinde isimlendirme yapılmıştır.
 - Örneğin; **ModelCacheTrait, ModelCacheException, ModelCacheEnum** vs..
@@ -412,7 +413,12 @@ interface BaseRepositoryInterface
 
 #### Örneğin;
 - Repository deki bir kaç metottan alınarak farklı bir data üretilmesi.
-- DB işlemi olmayan hesaplamalar vs.
+- DB işlemi olmayan hesaplamalar, dış veri kaynaklarından veri alınması / gönderilmesi vs. vs.
+
+#### Not: Service ve Repository katmanları aşağıdaki gibi çalışır. Bu sebeple eğer cache'e yazılması istenen bir response üretilecekse bu metot Repository katmanına eklenmelidir.
+
+### Service <-> Cache <-> Repository
+
 ```php
 <?php
 
@@ -1185,12 +1191,20 @@ karşılaştırması aşağıdaki gibi.
 Test'ler otomatik doldurulmaz her endpoint için özel olarak yazılacaktır. Deploy sırasında testler çalıştırılacak ve hata oluşması durumunda işlem durdurularak deploy yapılmayacaktır.
 
 -----
-
+## Code Review Önemi
+- Bilindiği üzere tecrübeden bağımsız, code review yazılım geliştirme sürecinin en önemli parçalarından biridir. Oluşturulan her PR merge edilmeden önce mutlaka farklı bir bakış açısı ile incelenmelidir.
+- Commit gönderen kişi code review yapan kişi dahi olsa farklı bir geliştirici tarafından incelenmeli ve böylece yazılım kalitesi arttırılmalı, oluşabilecek hatalar / açıklar daha erken tespit edilmeli ve yazılımın sürdürülebilirliği sağlanmalıdır.
+----
 # Sonuç
-Command 'ın geliştirme amacı temiz kod üretimi, kod tekrarının önüne geçmektir.
-Mevcut karmaşık veritabanı modelleri ile beklendiği kadar gibi temiz bir iş ortaya çıkmayacaktır.
-Öncelikli olarak veritabanı teke düşürülmeli yada en kötü ihtimalle veri tekrarı yapan tablo ve database'lerin sistemden hariç tutulması gerekmektedir, 
-Gereksiz tablolar, field'lar temizlenerek mevcut ihtiyaçlara göre tekrar tasarlanmalı, hatalı veriler temizlenmelidir.
+Verilerin hızla arttığı bu dönemlerde ileriye dönük planları da göz önünde bulundurarak veritabanı ve sistem mimarisinin yeniden tasarlanması, firmanın gelecekteki büyüme hedeflerine ulaşabilmesinde için kritik öneme sahiptir. 
+Mevcut sistemin yeniden yapılandırılması veri tutarlılığı, güvenlik ve kod kalitesi konularında önemli iyileştirmeler sağlayacaktır. Şu anda dağınık ve karmaşık bir yapıya sahip olan sistemlerin, merkezi bir yapı ile yeniden tasarlanması, veri yönetimini kolaylaştıracak ve sistemin sürdürülebilirliğini artıracaktır. Olası bir hack durumunda incelenmesi gereken tek bir sistem olacak ve bu sistem de sadece user token'ları ile çalıştığı için kim ne istek atmış direkt olarak görüntülenebilecektir.
+
+Yukarıda detaylarını aktardığım Command 'ın geliştirme amacı temiz kod üretimi, kod tekrarının önüne geçmek ve geliştiricilerin işlerini kolaylaştırarak aynı standartlarda kod yazmaya zorlamaktır.
+Mevcut karmaşık veritabanı modelleri ile bu command beklendiği gibi temiz bir sonuç için yetersizdir. Çünkü karmaşık ve tutarsız bir veritabanı yapıları, command'ın sağladığı avantajları gölgede bırakacaktır.
+Öncelikli olarak veritabanı teke düşürülmeli yada en kötü ihtimal veri tekrarı yapan tablo ve database'lerin sistemden hariç tutulması gerekmektedir.
+Gereksiz tablolar, field'lar temizlenerek mevcut ihtiyaçlara göre yeniden tasarlanmalı, hatalı veriler temizlenmelidir.
+İlişkisel veritabanı tercih edersek istisnasız tüm ilişkiler için foreign key'ler oluşturulmalıdır, aksi takdirde veritabanı tutarlılığı sağlanamayacak ve ilişkisel veritabanı kullanmanın bir anlamı kalmayacaktır.
+NoSQL tercih edilirse de foreign key'ler yerine referanslar kullanılmalı, veritabanı tutarlılığı sağlanmalıdır.
 
 - Varılan noktada şu anda veritabanına bağlanarak çalışan tüm projeler sadece frontend olacaklar, DB erişimi bu servis dışında hiçbir noktadan erişilebilir olmayacaktır.
 - Kullanıcı login olurken bu servisten token'ı alarak tüm isteklerini aldığı token ile bu servisler üzerinden yapacaklardır.
