@@ -1,12 +1,49 @@
 ### Amaç
 
-- Tek düzende best practices'a uygun clean code üreterek geliştirme süreçlerini hızlandırmak.
-- Veritabanı erişimi ihtiyaçlarını tüm proje ve kişilerden kaldırmak. 
-  - DB üzerinde yapılacak veri değişiklikleri hazırlanan command'lar üzerinden yapabiliriz.
-  - Tablolar da yapılacak değişiklikleri migration'lar ile yaparsak git history den geçmişe dönük neler yaşandı adım adım takip edebiliriz.
-- Sunucu erişimi ihtiyaçlarını tüm kişilerden kaldırmak. 
-  - Geçmişte bu süreçte EC2 üzerinde small bir sunucu kapalı konumda hazır olarak beklettik. İçerisine çalıştırıldığında master branch'i kendi üzerine çeken bir shell script hazırladık. Sadece ihtiyaç halinde açtık işimiz bitince kapattık. ECS üzerinde herhangi bir komut çalıştırma ihtiyacı olduğunda bu EC2 sunucusundaki projeyi son versiyon ile güncelleyip çalıştırmak istediğimiz komutları çalıştırdık. Bu sayede sunucu erişimi ihtiyacını ortadan kaldırmış olduk.
-- Sürdürülebilir ve tam dokümantasyonu hazırlanmış bir yapı oluşturarak kişi bağımlılıklarını tamamen ortadan kaldırmak.
+WBV projelerinin tamamında ortak ve merkezi bir servis altyapısı sağlamak amacıyla, `wbv.api` domaini altında tekil bir API mimarisi oluşturulmuştur. Bu yapı, mevcut ve gelecekteki tüm proje ihtiyaçlarını karşılayacak şekilde genişletilebilir ve sürdürülebilir olarak tasarlanmıştır. (Domain değiştirilebilir.)
+
+#### Kimlik Doğrulama
+
+Tüm projelerdeki kimlik doğrulama işlemleri merkezi olarak aşağıdaki endpoint'ler üzerinden gerçekleştirilir:
+
+- `wbv.api/auth/login`
+- `wbv.api/auth/logout`
+- ...
+
+Kullanıcılar, kimlik doğrulama sonrasında edindikleri token ile sahip oldukları yetkiler doğrultusunda tüm servis endpoint’lerine erişim sağlayabilirler.
+
+#### Örnek Servis Endpoint’leri
+
+- `wbv.api/users`
+- `wbv.api/roles`
+- `wbv.api/permissions`
+- `wbv.api/bonuses`  
+  _Örneğin: Bir kullanıcının herhangi bir siteye ait bonus bilgilerine erişmesi gerektiğinde bu endpoint kullanılır._
+- `wbv.api/affs`  
+  _Affiliate kullanıcıların erişimine açık yapıdır:_
+  - `wbv.api/affs/auth/login`
+  - `wbv.api/affs/auth/logout`
+- `wbv.api/deposits`  
+  _Yatırım verilerine erişim bu endpoint üzerinden sağlanır._
+- `wbv.api/withdraws`
+- ...
+
+#### Esnek ve Parametrik Veri Erişimi
+
+Servis yapısı, her sayfa veya veri türü için ayrı endpoint tanımlamaya ihtiyaç duymadan, filtreleme parametreleriyle özelleştirilmiş veri sorgularına izin verir. Böylece sade, okunabilir ve esnek bir API mimarisi elde edilmiştir.
+
+**Örnek:**  
+Belirli bir sitede, "pending" durumundaki ve belirli bir tutara sahip yatırımları listelemek için yalnızca doğru filtre parametrelerini aşağıdaki gibi göndermek yeterlidir:
+
+```http
+GET /deposits?filter[site]=1&filter[status]=pending&filter[amount]=100
+```
+
+Bu yapıda, filtreler URL üzerinde filter[...] şeklinde iletilir ve gerektiğinde yeni filtre türleri kolayca eklenebilir. Böylece her farklı ihtiyaç için yeni endpoint tasarlamaya gerek kalmaz; mevcut yapı üzerinde sadeleştirilmiş geliştirmeler yapılabilir.
+
+
+
+
 
 ### Mimari
 - Domain Driven Design Architecture
@@ -1191,26 +1228,96 @@ karşılaştırması aşağıdaki gibi.
 Test'ler otomatik doldurulmaz her endpoint için özel olarak yazılacaktır. Deploy sırasında testler çalıştırılacak ve hata oluşması durumunda işlem durdurularak deploy yapılmayacaktır.
 
 -----
+
+
+
+
+
+
 ## Code Review Önemi
-- Bilindiği üzere tecrübeden bağımsız, code review yazılım geliştirme sürecinin en önemli parçalarından biridir. Oluşturulan her PR merge edilmeden önce mutlaka farklı bir bakış açısı ile incelenmelidir.
-- Commit gönderen kişi code review yapan kişi dahi olsa farklı bir geliştirici tarafından incelenmeli ve böylece yazılım kalitesi arttırılmalı, oluşabilecek hatalar / açıklar daha erken tespit edilmeli ve yazılımın sürdürülebilirliği sağlanmalıdır.
-----
-# Sonuç
-Verilerin hızla arttığı bu dönemlerde ileriye dönük planları da göz önünde bulundurarak veritabanı ve sistem mimarisinin yeniden tasarlanması, firmanın gelecekteki büyüme hedeflerine ulaşabilmesinde için kritik öneme sahiptir. 
-Mevcut sistemin yeniden yapılandırılması veri tutarlılığı, güvenlik ve kod kalitesi konularında önemli iyileştirmeler sağlayacaktır. Şu anda dağınık ve karmaşık bir yapıya sahip olan sistemlerin, merkezi bir yapı ile yeniden tasarlanması, veri yönetimini kolaylaştıracak ve sistemin sürdürülebilirliğini artıracaktır. Olası bir hack durumunda incelenmesi gereken tek bir sistem olacak ve bu sistem de sadece user token'ları ile çalıştığı için kim ne istek atmış direkt olarak görüntülenebilecektir.
 
-Yukarıda detaylarını aktardığım Command 'ın geliştirme amacı temiz kod üretimi, kod tekrarının önüne geçmek ve geliştiricilerin işlerini kolaylaştırarak aynı standartlarda kod yazmaya zorlamaktır.
-Mevcut karmaşık veritabanı modelleri ile bu command beklendiği gibi temiz bir sonuç için yetersizdir. Çünkü karmaşık ve tutarsız bir veritabanı yapıları, command'ın sağladığı avantajları gölgede bırakacaktır.
-Öncelikli olarak veritabanı teke düşürülmeli yada en kötü ihtimal veri tekrarı yapan tablo ve database'lerin sistemden hariç tutulması gerekmektedir.
-Gereksiz tablolar, field'lar temizlenerek mevcut ihtiyaçlara göre yeniden tasarlanmalı, hatalı veriler temizlenmelidir.
-İlişkisel veritabanı tercih edersek istisnasız tüm ilişkiler için foreign key'ler oluşturulmalıdır, aksi takdirde veritabanı tutarlılığı sağlanamayacak ve ilişkisel veritabanı kullanmanın bir anlamı kalmayacaktır.
-NoSQL tercih edilirse de foreign key'ler yerine referanslar kullanılmalı, veritabanı tutarlılığı sağlanmalıdır.
+Tecrübe düzeyinden bağımsız olarak, *code review* (kod incelemesi), yazılım geliştirme süreçlerinin en kritik aşamalarından biridir. Her bir **pull request (PR)**, merge edilmeden önce mutlaka başka bir geliştirici tarafından incelenmelidir.
 
-- Varılan noktada şu anda veritabanına bağlanarak çalışan tüm projeler sadece frontend olacaklar, DB erişimi bu servis dışında hiçbir noktadan erişilebilir olmayacaktır.
-- Kullanıcı login olurken bu servisten token'ı alarak tüm isteklerini aldığı token ile bu servisler üzerinden yapacaklardır.
-- Model eventleri (CRUD) user bazlı takip edilerek nosql e öncesi sonrası olarak field field loglama yapılabilecek.
-- Dış data kullanan tüm projeler'de bu sistemden veri alacakları için dış servislerdeki herhangi bir değişiklik durumunda tüm projeleri değiştirmeye gerek kalmayacak.
-- Dış data'nın field'larında bir değişiklik olduğunda değişikliğin olduğu kısımları nokta atışı bildirim gönderen geliştirme eklenecek. Belirlenen aralıklarla otomatik kontrol sağlayacak. Fix uyguladığımız anda kullanan tüm projelerde düzelmiş olacak.
-- ECS ile yoğunluk durumuna göre otomatik olarak genişleyebilir, serverless çalışarak container'a hiçbir şekilde erişim olmayabilir.
-- ENV verileri AWS Secrets Manager üzerinden eklenebilir ve gizli verileri kimse görmeyebilir.
-- DOCKER'ın çalışır halde olması versiyon farklarından doğabilecek hatalarla karşılaşmamak ve tek komutla geliştirme ortamının ayağa kalkabilmesi (ngnix yada swoole, redis, mysql, mongo, vs.) için kritik önem taşımaktadır.  
+Bu sayede:
+
+- Yazılım kalitesi artırılır,
+- Potansiyel hatalar veya güvenlik açıkları daha erken tespit edilir,
+- Proje standartlarının (mimari yapı, kod yazım kuralları vb.) dışına çıkılması engellenir,
+- Yazılımın sürdürülebilirliği sağlanır.
+
+Commit’i gönderen kişi, review sürecini yürüten kişi dahi olsa, farklı bir geliştirici tarafından kontrol edilmesi bu sürecin temel prensibidir.
+
+---
+
+## Sonuç ve Önerilen Yapı
+
+Verinin hızla büyüdüğü günümüzde, ileriye dönük hedefler göz önünde bulundurulduğunda, veritabanı ve sistem mimarisinin yeniden tasarlanması kritik öneme sahiptir. Bu sayede:
+
+- **Veri tutarlılığı**,
+- **Güvenlik**,
+- **Kod kalitesi** gibi temel alanlarda ciddi iyileştirmeler mümkün olacaktır.
+
+Mevcut sistem, dağınık ve karmaşık bir yapıdadır. Bu yapı merkezi bir mimariyle yeniden tasarlandığında:
+
+- Veri yönetimi kolaylaşacak,
+- Sistem daha sürdürülebilir hale gelecek,
+- Güvenlik ihlali gibi durumlarda sadece merkezi sistem inceleneceği için tespit ve müdahale süreci sadeleşecektir.
+
+Ayrıca, kullanıcı istekleri sadece token bazlı bir servis üzerinden yönlendirileceğinden, “kim ne yaptı” sorusu net şekilde izlenebilir olacaktır.
+
+---
+
+## Command'ın Sistem İçindeki Rolü
+
+Command’ın temel geliştirme amacı:
+
+- Temiz kod üretimini teşvik etmek,
+- Kod tekrarını engellemek,
+- Geliştiricilerin ortak standartlarla çalışmasını sağlamak,
+- Geliştirme süreçlerini hızlandırmaktır.
+
+Ancak, mevcut karmaşık ve tutarsız veritabanı yapısı, bu hedeflerin gerçekleştirilmesinde ciddi engeller oluşturmaktadır. Bu nedenle:
+
+- Veritabanı tek bir yapıya indirgenmeli veya en azından veri tekrarına neden olan tablo ve veritabanları sistem dışına çıkarılmalıdır.
+- Gereksiz tablolar ve alanlar temizlenmeli, veritabanı mevcut ihtiyaçlara göre yeniden tasarlanmalıdır.
+- Hatalı veriler temizlenmeli, ilişkiler açık ve net şekilde kurulmalıdır.
+
+Veritabanı tercihlerine göre:
+
+- **İlişkisel yapı** kullanılıyorsa tüm ilişkiler foreign key’lerle desteklenmelidir.
+- **NoSQL** tercih edilirse, referans yapıları ile veri tutarlılığı sağlanmalıdır.
+
+---
+
+## Mimari ve Operasyonel Faydalar
+
+- Tüm projeler veritabanına doğrudan değil, yalnızca bu merkezi servis üzerinden erişim sağlayacaktır.
+- Kullanıcılar, oturum açarken bu servisten token alacak ve tüm istekleri bu token ile iletecektir.
+- Model olayları (CRUD işlemleri) kullanıcı bazlı izlenebilecek; alan bazında, işlem öncesi-sonrası loglama yapılabilecektir.
+- Dış veri kullanan tüm projeler yine bu servis üzerinden veri çekecektir. Bu sayede dış sistemlerdeki bir değişiklik tüm projeleri etkilemeyecek; sadece servis güncellenerek tüm sistemler güncel hale getirilecektir.
+- Dış verilerdeki alan değişiklikleri otomatik olarak kontrol edilip nokta atışı bildirim yapılabilecek; sorun anında fix uygulanıp merkezi olarak çözüm sağlanabilecektir.
+- Sistem yoğunluk durumuna göre **ECS ile otomatik olarak ölçeklenebilir**; **serverless** mimaride container’a doğrudan erişim ihtiyacı ortadan kalkacaktır.
+- **ENV değişkenleri**, **AWS Secrets Manager** üzerinden güvenli şekilde yönetilecektir.
+- Docker ile çalışma ortamı sabitlenerek versiyon kaynaklı hataların önüne geçilecek, tek komutla geliştirme ortamı (nginx, swoole, redis, MySQL, MongoDB vb.) ayağa kaldırılabilecektir.
+
+---
+
+## DB veya Sunucu Erişimi Konusundaki İtirazlara Yanıt
+
+- Veritabanında yapılacak veri değişiklikleri *command* üzerinden,
+- Yapısal değişiklikler ise *migration* yoluyla gerçekleştirildiği için tüm işlemler `git history` üzerinden adım adım takip edilebilecektir.
+- Daha önce bu ihtiyaç için EC2 üzerinde kapalı durumda bir sunucu hazır bulundurmuştuk. Gerektiğinde açarak, bu sunucu üzerinde kurulu olan projeyi hazırladığımız bir shell script ile `master` branch'ten güncelleterek gereken komutları çalıştırdık. İşimiz tamamlanınca da sunucuyu kapattık, böylece maaliyeti düşürmüş olduk.
+- Bu yöntemle ECS üzerinde doğrudan işlem yapma ihtiyacı da ortadan kaldırılmış oldu.
+
+---
+
+## Özetle
+
+- Güvenlik açığı durumunda onlarca farklı sunucuda inceleme yapmak gerekmeyecek.
+- Tüm kullanıcı ve servis erişimleri tek noktadan yönetilecek ve izlenebilir olacaktır.
+- Temiz, sade, dokümantasyonu tam bir yapı oluşturulacak.
+- Yeni geliştiriciler çok daha hızlı projeye adapte olabilecek.
+- Bu yapı, WBV sisteminin SOLID prensiplerine bağlı, en güncel ve güçlü teknolojilerle, sürdürülebilir bir mimariye kavuşturulması hedefiyle tasarlanmıştır. 
+- WBV'yi yeniden inşaa etmek, sorunları çözmekle kalmayacak, aynı zamanda gelecekteki gelişmelere de açık düzenli bir yapı sunacaktır.
+
+----------
