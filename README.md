@@ -935,8 +935,8 @@ namespace Domain\Product\DataTransferObjects;
 class BrandData extends BaseData
 {
     // Field'lar türleri ile birlikte burada eklenmeli
-    int $id
-    string $name
+    public int $id
+    public string $name
     // vs. vs.
 }
 ```
@@ -1321,3 +1321,4 @@ Veritabanı tercihlerine göre:
 - WBV'yi yeniden inşaa etmek, sorunları çözmekle kalmayacak, aynı zamanda gelecekteki gelişmelere de açık düzenli bir yapı sunacaktır.
 
 ----------
+
